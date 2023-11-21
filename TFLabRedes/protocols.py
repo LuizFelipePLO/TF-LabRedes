@@ -20,6 +20,11 @@ class Protocols():
     UDP_HEADER = Struct("!4H")
     DHCP_HEADER = Struct("!4BI2H4s4s4s4s16s64s128sI")
 
+    # Protocol Numbers
+    PROTO_IPV4 = 0x0800
+    PROTO_UDP = 17
+    DHCP_MAGIC_COOKIE = 0x63825363
+
     @staticmethod
     def decode_eth(message, display: List) -> Dict:
         '''Decode ethernet packet
@@ -112,7 +117,7 @@ class Protocols():
                            "Destination port": dest_port,
                            "Length": length,
                            "Checksum": chekcsum})
-                
+
         if source_port == 67 or source_port == 68:
             dhcp_header = Protocols.decode_dhcp(
                 message, display, offset+Protocols.UDP_HEADER.size)
@@ -122,15 +127,8 @@ class Protocols():
         return result
 
     @staticmethod
-    def decode_dhcp(message, display: List, offset: int) -> Dict:
-        '''Decode DHCP packet
-        Args:
-            message (bytes): The recieved data from the socket
-            display (List): Protocols whitelist to print
-            offset (int): Ethernet + IPv4 offset
-        Returns:
-            result (Dict): The decode result
-        '''
+    def decode_dhcp(message, display, offset):
+
         dhcp_header = Protocols.DHCP_HEADER.unpack_from(message, offset)
         op = dhcp_header[0]
         htype = dhcp_header[1]
@@ -150,7 +148,7 @@ class Protocols():
         result = {}
 
         # Protocols.perf_transport_layer["DHCP"] += 1
-       
+
         if "DHCP" in display:
             result.update({"op": op,
                            "htype": htype,
@@ -167,28 +165,27 @@ class Protocols():
                            "sname": sname,
                            "bootf": bootf})
 
-        while (True):
-            opt, length = Struct("!ss").unpack_from(message, offset)
-            opt = int.from_bytes(opt, "big")
-            length = int.from_bytes(length, "big")
-            offset += 2
-            res = struct.unpack_from("!%ds" % length, message, offset)[0]
-            if opt == 53:
-                res = int.from_bytes(res, "big")
-            if opt == 50:
-                res = inet_ntoa(res)
-            if opt == 12:
-                res = res.decode('ascii')
-            if opt == 255:
+        options = {}
+        while offset < len(message):
+            opt = message[offset]
+            if opt == 255:  # End Option
                 break
-            result.update({
-                opt: {
-                    "length": length,
-                    "res": res
-                }
-            })
+            offset += 1
+            length = message[offset]
+            offset += 1
+            data = message[offset:offset+length]
             offset += length
 
+            if opt == 53:  # DHCP Message Type
+                data = data[0]
+            elif opt == 50 or opt == 54:  # IP Addresses
+                data = inet_ntoa(data)
+            elif opt == 12:  # Host Name
+                data = data.decode('ascii')
+
+            options[opt] = {'length': length, 'data': data}
+
+        result.update(options)
         return result
 
     @staticmethod
@@ -197,7 +194,4 @@ class Protocols():
 
     @staticmethod
     def format_byte_array(array):
-        for i in array:
-            if i != 0:
-                return array
-        return "not given"
+        return ''.join(chr(b) for b in array if b != 0) or "not given"
