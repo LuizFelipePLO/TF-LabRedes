@@ -1,0 +1,12 @@
+$TTL 1D
+@       IN      SOA     pucrs.br. root.pucrs.br. (
+                        199609206       ; serial, todays date + todays serial #
+                        8H              ; refresh, seconds
+                        2H              ; retry, seconds
+                        4W              ; expire, seconds
+                        1D )            ; minimum, seconds
+                NS      localhost.
+                TXT     "Fake pucrs.br"
+
+pucrs.br.       A       191.6.209.171
+www             A       191.6.209.171

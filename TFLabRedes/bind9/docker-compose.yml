@@ -1,0 +1,20 @@
+version: '3.3'
+services:
+    bind9:
+        image: 'internetsystemsconsortium/bind9:9.18'
+        container_name: bind9
+        restart: always
+        ports:
+            - '53:53/udp'
+            - '53:53/tcp'
+            - '127.0.0.1:953:953/tcp'
+        network_mode: "host"        
+        
+        volumes:
+          - ./confs/named.conf:/etc/bind/named.conf
+          - ./confs/fake.conf:/var/bind/fake.conf
+          - ./confs/fake.zone:/var/bind/fake.zone
+          - /var/cache/bind
+          - /var/lib/bind
+          - /var/log
+        
